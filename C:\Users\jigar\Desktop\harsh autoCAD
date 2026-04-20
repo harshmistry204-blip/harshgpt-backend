@@ -1,169 +1,231 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Advanced Calculator</title>
+  <title>HarshGPT Pro</title>
+
   <style>
     body {
-      background: linear-gradient(135deg, #1e1e1e, #2c2c2c);
+      margin: 0;
       display: flex;
-      justify-content: center;
-      align-items: center;
       height: 100vh;
       font-family: Arial;
-    }
-
-    .calculator {
-      background: #1e1e1e;
-      padding: 15px;
-      border-radius: 20px;
-      width: 320px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    }
-
-    #display {
-      width: 100%;
-      height: 70px;
-      font-size: 28px;
-      background: #2d2d2d;
+      background: #343541;
       color: white;
-      border: none;
-      text-align: right;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: #202123;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .new-chat {
+      background: #343541;
+      border: 1px solid #555;
+      padding: 10px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .chat-item {
+      padding: 8px;
+      margin: 5px 0;
+      background: #2a2b32;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-area {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      margin: 8px 0;
+      max-width: 70%;
       padding: 10px;
       border-radius: 10px;
-      margin-bottom: 15px;
     }
 
-    .buttons {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
+    .user {
+      background: #19c37d;
+      align-self: flex-end;
+    }
+
+    .bot {
+      background: #444654;
+      align-self: flex-start;
+    }
+
+    .input-area {
+      display: flex;
+      padding: 10px;
+      background: #40414f;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 5px;
+      border: none;
+      outline: none;
     }
 
     button {
-      height: 55px;
-      font-size: 18px;
-      border-radius: 12px;
+      margin-left: 8px;
+      padding: 10px;
+      background: #19c37d;
       border: none;
+      color: white;
       cursor: pointer;
-      transition: 0.2s;
-      background: #3c3f41;
-      color: white;
     }
 
-    button:hover {
-      transform: scale(1.05);
-      background: #505354;
-    }
-
-    button:active {
-      transform: scale(0.95);
-    }
-
-    .operator {
-      background: #ff9500;
-      color: white;
-    }
-
-    .operator:hover {
-      background: #e08900;
-    }
-
-    .equal {
-      background: #00c853;
-      color: white;
-    }
-
-    .equal:hover {
-      background: #00a844;
-    }
-
-    .clear {
-      background: #d32f2f;
-    }
-
-    .clear:hover {
-      background: #b71c1c;
+    #loginBox {
+      position: absolute;
+      top: 10px;
+      right: 10px;
     }
   </style>
 </head>
 
 <body>
 
-<div class="calculator">
-  <input type="text" id="display" readonly>
+<!-- Login -->
+<div id="loginBox">
+  <button onclick="login()">Login</button>
+</div>
 
-  <div class="buttons">
-    <button onclick="percent()">%</button>
-    <button class="clear" onclick="clearDisplay()">CE</button>
-    <button class="clear" onclick="clearDisplay()">C</button>
-    <button onclick="backspace()">⌫</button>
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="new-chat" onclick="newChat()">+ New Chat</div>
+  <div class="chat-list" id="chatList"></div>
+</div>
 
-    <button onclick="clickValue('7')">7</button>
-    <button onclick="clickValue('8')">8</button>
-    <button onclick="clickValue('9')">9</button>
-    <button class="operator" onclick="clickValue('*')">×</button>
+<!-- Main -->
+<div class="main">
+  <div class="chat-area" id="chat"></div>
 
-    <button onclick="clickValue('4')">4</button>
-    <button onclick="clickValue('5')">5</button>
-    <button onclick="clickValue('6')">6</button>
-    <button class="operator" onclick="clickValue('-')">−</button>
-
-    <button onclick="clickValue('1')">1</button>
-    <button onclick="clickValue('2')">2</button>
-    <button onclick="clickValue('3')">3</button>
-    <button class="operator" onclick="clickValue('+')">+</button>
-
-    <button onclick="clickValue('0')">0</button>
-    <button onclick="clickValue('.')">.</button>
-    <button class="equal" onclick="calculate()">=</button>
+  <div class="input-area">
+    <input id="input" placeholder="Send a message...">
+    <button onclick="startVoice()">🎤</button>
+    <button onclick="send()">Send</button>
   </div>
 </div>
 
 <script>
-  let display = document.getElementById("display");
+let chat = document.getElementById("chat");
+let currentChat = [];
 
-  function clickValue(value) {
-    display.value += value;
+// 🔹 Save chats
+function saveChats() {
+  localStorage.setItem("harshgpt", JSON.stringify(currentChat));
+}
+
+// 🔹 Load chats
+function loadChats() {
+  let saved = localStorage.getItem("harshgpt");
+  if (saved) {
+    currentChat = JSON.parse(saved);
+    currentChat.forEach(msg => {
+      addMessage(msg.text, msg.sender, false);
+    });
+  }
+}
+
+window.onload = loadChats;
+
+// 🔹 Add message
+function addMessage(text, sender, save = true) {
+  let div = document.createElement("div");
+  div.className = "message " + sender;
+  div.textContent = text;
+  chat.appendChild(div);
+
+  if (save) {
+    currentChat.push({ text, sender });
+    saveChats();
   }
 
-  function clearDisplay() {
-    display.value = "";
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// 🔹 New chat
+function newChat() {
+  chat.innerHTML = "";
+  currentChat = [];
+  saveChats();
+}
+
+// 🔹 Send message
+async function send() {
+  let input = document.getElementById("input");
+  let text = input.value;
+  if (!text) return;
+
+  addMessage(text, "user");
+  input.value = "";
+
+  let typing = document.createElement("div");
+  typing.className = "message bot";
+  typing.textContent = "AI is typing...";
+  chat.appendChild(typing);
+
+  try {
+    let res = await fetch("https://harshgpt-backend.onrender.com/chat", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ message: text })
+    });
+
+    let data = await res.json();
+    let reply = data.choices[0].message.content;
+
+    typing.remove();
+    addMessage(reply, "bot");
+
+  } catch (error) {
+    typing.textContent = "Error connecting to AI";
   }
+}
 
-  function backspace() {
-    display.value = display.value.slice(0, -1);
-  }
+// 🔹 Enter key
+document.getElementById("input").addEventListener("keypress", e => {
+  if (e.key === "Enter") send();
+});
 
-  function percent() {
-    try {
-      display.value = eval(display.value) / 100;
-    } catch {
-      display.value = "Error";
-    }
-  }
+// 🎤 Voice input
+function startVoice() {
+  let recognition = new webkitSpeechRecognition();
+  recognition.lang = "en-US";
 
-  function calculate() {
-    try {
-      display.value = eval(display.value);
-    } catch {
-      display.value = "Error";
-    }
-  }
+  recognition.onresult = function(event) {
+    document.getElementById("input").value =
+      event.results[0][0].transcript;
+  };
 
-  // 🎹 Keyboard support
-  document.addEventListener("keydown", function(event) {
-    const key = event.key;
+  recognition.start();
+}
 
-    if (!isNaN(key) || "+-*/.".includes(key)) {
-      display.value += key;
-    } else if (key === "Enter") {
-      calculate();
-    } else if (key === "Backspace") {
-      backspace();
-    } else if (key === "Escape") {
-      clearDisplay();
-    }
-  });
+// 🔐 Simple login (demo)
+function login() {
+  let name = prompt("Enter your name:");
+  if (name) alert("Welcome " + name);
+}
 </script>
 
 </body>
